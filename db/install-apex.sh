@@ -3,6 +3,9 @@ set -e
 
 echo "Starting Oracle APEX Installation..."
 
+# Fallback for official Oracle images which use ORACLE_PWD instead of ORACLE_PASSWORD
+ORACLE_PASSWORD="${ORACLE_PASSWORD:-$ORACLE_PWD}"
+
 # Dynamically find the PDB name (works for FREEPDB1 or ORCLPDB1)
 PDB_NAME=$(echo -e "SET PAGESIZE 0\nSET HEADING OFF\nSELECT name FROM v\$pdbs WHERE name != 'PDB\$SEED' AND ROWNUM = 1;" | sqlplus -s / as sysdba 2>/dev/null | xargs || true)
 
