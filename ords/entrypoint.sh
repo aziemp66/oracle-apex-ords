@@ -4,7 +4,7 @@ set -e
 export ORDS_CONFIG=/opt/oracle/ords-config
 export PATH=/opt/oracle/ords/bin:$PATH
 
-if [ ! -d "$ORDS_CONFIG/ords" ]; then
+if [ ! -d "$ORDS_CONFIG/databases" ]; then
   echo "Waiting for Oracle Database and APEX to be fully initialized..."
   
   while true; do
