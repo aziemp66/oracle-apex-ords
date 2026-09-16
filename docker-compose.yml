@@ -1,0 +1,39 @@
+services:
+  oracle-db:
+    build:
+      context: ./db
+      # To use Oracle Enterprise in the future, uncomment the build-arg below:
+      # args:
+      #   BASE_IMAGE: container-registry.oracle.com/database/enterprise:latest
+    container_name: oracle-db
+    ports:
+      - "${PORT_DB:-1521}:1521"
+    environment:
+      - ORACLE_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - oracle_db_data:/opt/oracle/oradata
+    restart: unless-stopped
+
+  oracle-ords:
+    build:
+      context: ./ords
+    container_name: oracle-ords
+    depends_on:
+      - oracle-db
+    ports:
+      - "${PORT_ORDS:-8080}:8080"
+    environment:
+      - ORACLE_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=oracle-db
+      - DB_PORT=1521
+      # Change DB_SERVICE if using Oracle Enterprise (e.g., ORCLPDB1)
+      - DB_SERVICE=FREEPDB1
+    volumes:
+      - oracle_ords_config:/opt/oracle/ords-config
+    restart: unless-stopped
+
+volumes:
+  oracle_db_data:
+    name: oracle_db_data
+  oracle_ords_config:
+    name: oracle_ords_config
