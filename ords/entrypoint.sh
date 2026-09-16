@@ -42,6 +42,9 @@ EOF
     sleep 20
   done
 
+  echo "Ensuring PL/SQL Gateway is enabled for APEX..."
+  ords --config $ORDS_CONFIG config set plsql.gateway.mode proxied
+
   echo "Mapping APEX static assets to /i/..."
   ords --config $ORDS_CONFIG config set standalone.static.path /opt/oracle/apex/images
   ords --config $ORDS_CONFIG config set standalone.static.context.path /i
