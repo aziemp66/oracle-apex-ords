@@ -6,6 +6,9 @@ RUN dnf install -y java-17-openjdk unzip wget && dnf clean all
 # Create directories
 RUN mkdir -p /opt/oracle/ords /opt/oracle/ords-config /opt/oracle/apex
 
+# Allow cache busting for ORDS and APEX downloads
+ARG APEX_VERSION=latest
+
 # Download ORDS and APEX (we need APEX for the static /images/ folder)
 RUN cd /tmp && \
     wget -q https://download.oracle.com/otn_software/java/ords/ords-latest.zip -O ords.zip && \

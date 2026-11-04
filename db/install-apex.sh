@@ -1,14 +1,16 @@
 #!/bin/bash
 set -e
 
+ORACLE_PASSWORD="${ORACLE_PASSWORD:-$ORACLE_PWD}"
+
 echo "Starting Oracle APEX Installation..."
 
 # Dynamically find the PDB name (works for FREEPDB1 or ORCLPDB1)
 PDB_NAME=$(echo -e "SET PAGESIZE 0\nSET HEADING OFF\nSELECT name FROM v\$pdbs WHERE name != 'PDB\$SEED' AND ROWNUM = 1;" | sqlplus -s / as sysdba 2>/dev/null | xargs || true)
 
 if [ -z "$PDB_NAME" ]; then
-    echo "Could not detect a Pluggable Database! Defaulting to FREEPDB1."
-    PDB_NAME="FREEPDB1"
+    echo "Could not detect a Pluggable Database! Defaulting to ${ORACLE_PDB:-ORCLPDB1}."
+    PDB_NAME="${ORACLE_PDB:-ORCLPDB1}"
 fi
 
 echo "Targeting Pluggable Database: $PDB_NAME"
@@ -32,19 +34,25 @@ sqlplus -s / as sysdba <<EOF
 ALTER SESSION SET CONTAINER = $PDB_NAME;
 ALTER USER APEX_PUBLIC_USER ACCOUNT UNLOCK;
 ALTER USER APEX_REST_PUBLIC_USER ACCOUNT UNLOCK;
-ALTER USER APEX_LISTENER ACCOUNT UNLOCK;
 ALTER USER APEX_PUBLIC_USER IDENTIFIED BY "$ORACLE_PASSWORD";
 ALTER USER APEX_REST_PUBLIC_USER IDENTIFIED BY "$ORACLE_PASSWORD";
-ALTER USER APEX_LISTENER IDENTIFIED BY "$ORACLE_PASSWORD";
 
 -- Setup the INTERNAL Workspace ADMIN password
 BEGIN
     APEX_UTIL.set_security_group_id( 10 );
-    APEX_UTIL.create_user(
-        p_user_name       => 'ADMIN',
-        p_email_address   => 'admin@localhost',
-        p_web_password    => '$ORACLE_PASSWORD',
-        p_developer_privs => 'ADMIN' );
+    BEGIN
+        APEX_UTIL.create_user(
+            p_user_name       => 'ADMIN',
+            p_email_address   => 'admin@localhost',
+            p_web_password    => '$ORACLE_PASSWORD',
+            p_developer_privs => 'ADMIN' );
+    EXCEPTION
+        WHEN OTHERS THEN
+            APEX_UTIL.edit_user(
+                p_user_id      => APEX_UTIL.get_user_id('ADMIN'),
+                p_user_name    => 'ADMIN',
+                p_web_password => '$ORACLE_PASSWORD' );
+    END;
     APEX_UTIL.set_security_group_id( null );
     COMMIT;
 END;
