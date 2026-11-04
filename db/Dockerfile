@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=container-registry.oracle.com/database/enterprise:latest
+ARG BASE_IMAGE=container-registry.oracle.com/database/enterprise:23.26.1.0
 FROM ${BASE_IMAGE}
 
 USER root
@@ -14,16 +14,22 @@ RUN if ! command -v unzip &> /dev/null || (! command -v wget &> /dev/null && ! c
         fi; \
     fi
 
+ARG APEX_VERSION=26.2
+
 # Create directory and download APEX
 RUN mkdir -p /opt/oracle/apex && \
     cd /tmp && \
-    if command -v curl &> /dev/null; then \
-        curl -sSL https://download.oracle.com/otn_software/apex/apex-latest.zip -o apex-latest.zip; \
-    else \
-        wget -q https://download.oracle.com/otn_software/apex/apex-latest.zip -O apex-latest.zip; \
+    APEX_URL="https://download.oracle.com/otn_software/apex/apex_${APEX_VERSION}.zip"; \
+    if [ "${APEX_VERSION}" = "latest" ]; then \
+        APEX_URL="https://download.oracle.com/otn_software/apex/apex-latest.zip"; \
     fi && \
-    unzip -q apex-latest.zip -d /opt/oracle/ && \
-    rm apex-latest.zip && \
+    if command -v curl &> /dev/null; then \
+        curl -sSL "$APEX_URL" -o apex.zip; \
+    else \
+        wget -q "$APEX_URL" -O apex.zip; \
+    fi && \
+    unzip -q apex.zip -d /opt/oracle/ && \
+    rm apex.zip && \
     chown -R oracle:oinstall /opt/oracle/apex
 
 # Copy the initialization script that installs APEX

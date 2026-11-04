@@ -3,7 +3,8 @@ services:
     build:
       context: ./db
       args:
-        BASE_IMAGE: container-registry.oracle.com/database/enterprise:latest
+        BASE_IMAGE: container-registry.oracle.com/database/enterprise:${DB_VERSION:-23.26.1.0}
+        APEX_VERSION: ${APEX_VERSION:-26.2}
     container_name: oracle-db
     hostname: oracle-db
     ports:
@@ -18,20 +19,23 @@ services:
     restart: unless-stopped
 
   oracle-ords:
-    build:
-      context: ./ords
+    image: container-registry.oracle.com/database/ords:${ORDS_VERSION:-26.3.0}
     container_name: oracle-ords
+    hostname: oracle-ords
     depends_on:
       - oracle-db
     ports:
       - "${PORT_ORDS:-8080}:8080"
     environment:
-      - ORACLE_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=oracle-db
-      - DB_PORT=1521
-      - DB_SERVICE=${DB_SERVICE:-ORCLPDB1}
+      - DBHOST=oracle-db
+      - DBPORT=1521
+      - DBSERVICENAME=${DB_SERVICE:-ORCLPDB1}
+      - ORACLE_PWD=${DB_PASSWORD}
+      - ORACLE_USER_PWD=${DB_PASSWORD}
+      - APEX_PWD=${DB_PASSWORD}
     volumes:
-      - oracle_ords_config:/opt/oracle/ords-config
+      - oracle_ords_config:/etc/ords/config
+      - ./apex:/opt/oracle/apex:ro
     restart: unless-stopped
 
 volumes:
