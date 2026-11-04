@@ -56,6 +56,14 @@ EOF
   ords --config "$ORDS_CONFIG" config set standalone.static.context.path /i
 else
   echo "ORDS is already configured with APEX proxied gateway."
+  echo "Waiting for Oracle Database listener at ${DB_HOST:-oracle-db}:${DB_PORT:-1521}..."
+  while ! (exec 3<>/dev/tcp/${DB_HOST:-oracle-db}/${DB_PORT:-1521}) 2>/dev/null; do
+    sleep 2
+  done
+  exec 3<&-
+  exec 3>&-
+  echo "Oracle Database listener is reachable. Waiting 5s for services to be ready..."
+  sleep 5
 fi
 
 echo "Starting ORDS Web Server..."

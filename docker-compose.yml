@@ -5,6 +5,7 @@ services:
       args:
         BASE_IMAGE: container-registry.oracle.com/database/enterprise:latest
     container_name: oracle-db
+    hostname: oracle-db
     ports:
       - "${PORT_DB:-1521}:1521"
     environment:

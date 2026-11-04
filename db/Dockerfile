@@ -27,11 +27,16 @@ RUN mkdir -p /opt/oracle/apex && \
     chown -R oracle:oinstall /opt/oracle/apex
 
 # Copy the initialization script that installs APEX
-RUN mkdir -p /container-entrypoint-initdb.d /opt/oracle/scripts/setup
+RUN mkdir -p /container-entrypoint-initdb.d /opt/oracle/scripts/setup /opt/oracle/scripts/startup
 COPY install-apex.sh /container-entrypoint-initdb.d/01-install-apex.sh
 COPY install-apex.sh /opt/oracle/scripts/setup/01-install-apex.sh
+COPY startup-listener.sh /opt/oracle/scripts/startup/01-startup-listener.sh
 
-RUN chmod +x /container-entrypoint-initdb.d/01-install-apex.sh /opt/oracle/scripts/setup/01-install-apex.sh && \
-    chown oracle:oinstall /container-entrypoint-initdb.d/01-install-apex.sh /opt/oracle/scripts/setup/01-install-apex.sh
+RUN chmod +x /container-entrypoint-initdb.d/01-install-apex.sh \
+             /opt/oracle/scripts/setup/01-install-apex.sh \
+             /opt/oracle/scripts/startup/01-startup-listener.sh && \
+    chown oracle:oinstall /container-entrypoint-initdb.d/01-install-apex.sh \
+                          /opt/oracle/scripts/setup/01-install-apex.sh \
+                          /opt/oracle/scripts/startup/01-startup-listener.sh
 
 USER oracle
