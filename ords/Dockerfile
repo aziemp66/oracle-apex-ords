@@ -1,31 +1,28 @@
-FROM oraclelinux:8
+ARG BASE_IMAGE=container-registry.oracle.com/database/ords:26.3.1
+FROM ${BASE_IMAGE}
 
-# Install dependencies
-RUN dnf install -y java-17-openjdk unzip wget && dnf clean all
+USER root
 
-# Create directories
-RUN mkdir -p /opt/oracle/ords /opt/oracle/ords-config /opt/oracle/apex
+# Install unzip if not present (for APEX extraction if fallback download is needed)
+RUN if ! command -v unzip &> /dev/null; then \
+        if command -v microdnf &> /dev/null; then \
+            microdnf install -y unzip && microdnf clean all; \
+        elif command -v dnf &> /dev/null; then \
+            dnf install -y unzip && dnf clean all; \
+        fi; \
+    fi
 
-# Allow cache busting for ORDS and APEX downloads
-ARG APEX_VERSION=latest
+ARG APEX_VERSION=26.2
+ENV APEX_VERSION=${APEX_VERSION}
 
-# Download ORDS and APEX (we need APEX for the static /images/ folder)
-RUN cd /tmp && \
-    wget -q https://download.oracle.com/otn_software/java/ords/ords-latest.zip -O ords.zip && \
-    unzip -q ords.zip -d /opt/oracle/ords/ && \
-    rm ords.zip && \
-    wget -q https://download.oracle.com/otn_software/apex/apex-latest.zip -O apex.zip && \
-    unzip -q apex.zip -d /opt/oracle/ && \
-    rm apex.zip
-
-# Create a non-root user for security
-RUN groupadd -g 1000 ords && useradd -u 1000 -g ords -d /opt/oracle -s /bin/bash ords && \
-    chown -R ords:ords /opt/oracle
+# Ensure directories exist with oracle user ownership
+RUN mkdir -p /opt/oracle/apex /etc/ords/config && \
+    chown -R oracle:oinstall /opt/oracle/apex /etc/ords/config
 
 COPY entrypoint.sh /opt/oracle/entrypoint.sh
-RUN chmod +x /opt/oracle/entrypoint.sh && chown ords:ords /opt/oracle/entrypoint.sh
+RUN chmod +x /opt/oracle/entrypoint.sh && chown oracle:oinstall /opt/oracle/entrypoint.sh
 
-USER ords
-WORKDIR /opt/oracle
+USER oracle
+WORKDIR /opt/oracle/ords
 
 ENTRYPOINT ["/opt/oracle/entrypoint.sh"]

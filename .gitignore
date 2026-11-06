@@ -1,5 +1,7 @@
 .env
-apex
+// ignore all files in the apex directory and its subdirectories except .gitkeep
+apex/*
+!apex/.gitkeep
 oradata
 ords_config
 META-INF

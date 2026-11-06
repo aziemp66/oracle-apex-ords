@@ -21,7 +21,11 @@ services:
     restart: unless-stopped
 
   oracle-ords:
-    image: container-registry.oracle.com/database/ords:${ORDS_VERSION:-26.3.0}
+    build:
+      context: ./ords
+      args:
+        BASE_IMAGE: container-registry.oracle.com/database/ords:${ORDS_VERSION:-26.3.1}
+        APEX_VERSION: ${APEX_VERSION:-26.2}
     container_name: oracle-ords
     hostname: oracle-ords
     depends_on:
@@ -35,6 +39,7 @@ services:
       - ORACLE_PWD=${DB_PASSWORD}
       - ORACLE_USER_PWD=${DB_PASSWORD}
       - APEX_PWD=${DB_PASSWORD}
+      - APEX_VERSION=${APEX_VERSION:-26.2}
     volumes:
       - oracle_ords_config:/etc/ords/config
       - ./apex:/opt/oracle/apex:ro

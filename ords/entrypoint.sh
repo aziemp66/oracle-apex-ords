@@ -1,70 +1,50 @@
 #!/bin/bash
 set -e
 
-ORACLE_PASSWORD="${ORACLE_PASSWORD:-$ORACLE_PWD}"
-export ORDS_CONFIG=/opt/oracle/ords-config
-export PATH=/opt/oracle/ords/bin:$PATH
+APEX_DIR="/opt/oracle/apex"
+APEX_VERSION="${APEX_VERSION:-26.2}"
 
-# Check if ORDS has already been configured with proxied gateway
-CURRENT_GW_MODE=$(ords --config "$ORDS_CONFIG" config get plsql.gateway.mode 2>/dev/null | tail -n 1 | tr -d '[:space:]' || true)
-
-if [ "$CURRENT_GW_MODE" != "proxied" ]; then
-  echo "ORDS is not configured or APEX gateway is not proxied (current: '${CURRENT_GW_MODE}')."
-  echo "Waiting for Oracle Database and APEX to be fully initialized..."
-  
-  while true; do
-    echo "Attempting ORDS installation... (Will retry if DB/APEX is not ready)"
-    
-    # Wipe any previous partial/disabled configuration before trying
-    rm -rf "$ORDS_CONFIG"/*
-
-    # Temporarily disable exit-on-error for the loop
-    set +e
-    ords --config "$ORDS_CONFIG" install \
-         --admin-user SYS \
-         --db-hostname "${DB_HOST:-oracle-db}" \
-         --db-port "${DB_PORT:-1521}" \
-         --db-servicename "${DB_SERVICE:-ORCLPDB1}" \
-         --feature-db-api true \
-         --feature-rest-enabled-sql true \
-         --feature-sdw true \
-         --gateway-mode proxied \
-         --gateway-user APEX_PUBLIC_USER \
-         --password-stdin <<EOF
-${ORACLE_PASSWORD}
-${ORACLE_PASSWORD}
-${ORACLE_PASSWORD}
-${ORACLE_PASSWORD}
-EOF
-    INSTALL_RESULT=$?
-    set -e
-    
-    GW_MODE=$(ords --config "$ORDS_CONFIG" config get plsql.gateway.mode 2>/dev/null | tail -n 1 | tr -d '[:space:]' || true)
-
-    if [ $INSTALL_RESULT -eq 0 ] && [ "$GW_MODE" = "proxied" ]; then
-      echo "ORDS successfully configured with APEX proxied gateway!"
-      break
-    fi
-    
-    echo "Database or APEX not fully ready yet (exit code: $INSTALL_RESULT, gateway mode: '$GW_MODE'). Retrying in 15 seconds..."
-    rm -rf "$ORDS_CONFIG"/*
-    sleep 15
-  done
-
-  echo "Mapping APEX static assets to /i/..."
-  ords --config "$ORDS_CONFIG" config set standalone.static.path /opt/oracle/apex/images
-  ords --config "$ORDS_CONFIG" config set standalone.static.context.path /i
+# Check if APEX images directory exists
+if [ -d "${APEX_DIR}/images" ]; then
+    echo "Using existing APEX images at ${APEX_DIR}/images."
 else
-  echo "ORDS is already configured with APEX proxied gateway."
-  echo "Waiting for Oracle Database listener at ${DB_HOST:-oracle-db}:${DB_PORT:-1521}..."
-  while ! (exec 3<>/dev/tcp/${DB_HOST:-oracle-db}/${DB_PORT:-1521}) 2>/dev/null; do
-    sleep 2
-  done
-  exec 3<&-
-  exec 3>&-
-  echo "Oracle Database listener is reachable. Waiting 5s for services to be ready..."
-  sleep 5
+    echo "APEX images not found in ${APEX_DIR}/images. Falling back to downloading APEX version ${APEX_VERSION}..."
+    mkdir -p "${APEX_DIR}"
+    cd /tmp
+
+    APEX_URL="https://download.oracle.com/otn_software/apex/apex_${APEX_VERSION}.zip"
+    if [ "${APEX_VERSION}" = "latest" ]; then
+        APEX_URL="https://download.oracle.com/otn_software/apex/apex-latest.zip"
+    fi
+
+    echo "Downloading APEX from ${APEX_URL}..."
+    if command -v curl &> /dev/null; then
+        curl -sSL "$APEX_URL" -o apex.zip
+    elif command -v wget &> /dev/null; then
+        wget -q "$APEX_URL" -O apex.zip
+    else
+        echo "Error: Neither curl nor wget is available to download APEX!"
+        exit 1
+    fi
+
+    echo "Extracting APEX to ${APEX_DIR}..."
+    if unzip -q -o apex.zip -d /opt/oracle/ 2>/dev/null; then
+        echo "Successfully extracted APEX to /opt/oracle/apex"
+    else
+        echo "Extracting to fallback directory..."
+        mkdir -p /tmp/apex_extracted
+        unzip -q -o apex.zip -d /tmp/apex_extracted
+        cp -rn /tmp/apex_extracted/apex/* "${APEX_DIR}/" 2>/dev/null || true
+        if [ ! -d "${APEX_DIR}/images" ] && [ -d /tmp/apex_extracted/apex/images ]; then
+            mkdir -p /tmp/apex
+            cp -rn /tmp/apex_extracted/apex/* /tmp/apex/
+            export APEX_HOME=/tmp/apex
+            export APEXI=/tmp/apex/images
+        fi
+        rm -rf /tmp/apex_extracted
+    fi
+    rm -f /tmp/apex.zip
 fi
 
-echo "Starting ORDS Web Server..."
-exec ords --config "$ORDS_CONFIG" serve
+# Execute the official ORDS entrypoint
+exec /usr/bin/docker-entrypoint.sh "$@"
