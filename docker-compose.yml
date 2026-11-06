@@ -14,8 +14,10 @@ services:
       - ORACLE_PASSWORD=${DB_PASSWORD}
       - ORACLE_SID=${DB_SID:-ORCLCDB}
       - ORACLE_PDB=${DB_PDB:-ORCLPDB1}
+      - APEX_VERSION=${APEX_VERSION:-26.2}
     volumes:
       - oracle_db_data:/opt/oracle/oradata
+      - ./apex:/opt/oracle/apex
     restart: unless-stopped
 
   oracle-ords:

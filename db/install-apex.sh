@@ -15,7 +15,49 @@ fi
 
 echo "Targeting Pluggable Database: $PDB_NAME"
 
-cd /opt/oracle/apex
+APEX_DIR="/opt/oracle/apex"
+APEX_VERSION="${APEX_VERSION:-26.2}"
+
+# Check if APEX directory contains installation files
+if [ -f "${APEX_DIR}/apexins.sql" ]; then
+    echo "Using existing APEX folder at ${APEX_DIR} (apexins.sql found)."
+else
+    echo "APEX not found in ${APEX_DIR}. Falling back to downloading APEX version ${APEX_VERSION}..."
+    mkdir -p "${APEX_DIR}"
+    cd /tmp
+
+    APEX_URL="https://download.oracle.com/otn_software/apex/apex_${APEX_VERSION}.zip"
+    if [ "${APEX_VERSION}" = "latest" ]; then
+        APEX_URL="https://download.oracle.com/otn_software/apex/apex-latest.zip"
+    fi
+
+    echo "Downloading APEX from ${APEX_URL}..."
+    if command -v curl &> /dev/null; then
+        curl -sSL "$APEX_URL" -o apex.zip
+    elif command -v wget &> /dev/null; then
+        wget -q "$APEX_URL" -O apex.zip
+    else
+        echo "Error: Neither curl nor wget is available to download APEX!"
+        exit 1
+    fi
+
+    echo "Extracting APEX to /opt/oracle/..."
+    if unzip -q -o apex.zip -d /opt/oracle/ 2>/dev/null; then
+        echo "Successfully extracted APEX to /opt/oracle/apex"
+    else
+        echo "Extracting to fallback directory..."
+        mkdir -p /tmp/apex_extracted
+        unzip -q -o apex.zip -d /tmp/apex_extracted
+        cp -rn /tmp/apex_extracted/apex/* "${APEX_DIR}/" 2>/dev/null || true
+        if [ ! -f "${APEX_DIR}/apexins.sql" ]; then
+            APEX_DIR="/tmp/apex_extracted/apex"
+        fi
+        rm -rf /tmp/apex_extracted
+    fi
+    rm -f /tmp/apex.zip
+fi
+
+cd "$APEX_DIR"
 
 echo "Executing @apexins.sql (this will take 15-30 minutes)..."
 sqlplus -s / as sysdba <<EOF
